@@ -1,0 +1,9 @@
+{
+  "name": "expense-flow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Basic node-based expense tracker prototype",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Expense Flow Monthly</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Monthly Expense Management</p>
+          <div class="month-row">
+            <button type="button" id="prev-month" class="month-nav" aria-label="Previous month">
+              &#8249;
+            </button>
+            <h1 id="month-label">March 2026</h1>
+            <button type="button" id="next-month" class="month-nav" aria-label="Next month">
+              &#8250;
+            </button>
+          </div>
+          <p class="topbar-note" id="topbar-note"></p>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" id="zoom-out">-</button>
+          <button type="button" id="zoom-reset">100%</button>
+          <button type="button" id="zoom-in">+</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="left-rail">
+          <section class="rail-card">
+            <p class="rail-title">Add Node</p>
+            <button type="button" class="tool-button" data-tool="income">Income Node</button>
+            <button type="button" class="tool-button" data-tool="expense">Expense Node</button>
+            <p class="rail-help">Choose a node type first, then click on the canvas to place it.</p>
+          </section>
+
+          <section class="rail-card">
+            <p class="rail-title">Canvas</p>
+            <p class="rail-help">Hold `Space` and drag to pan.</p>
+            <p class="rail-help">Use arrow keys to move around the month canvas.</p>
+            <p class="rail-help">Drag from a node handle into balance or same-type nodes to connect.</p>
+          </section>
+
+          <section class="rail-card">
+            <p class="rail-title">Cloud Ready</p>
+            <p class="rail-help">This build uses local storage today and includes a Firestore-ready config file for cloud sync.</p>
+          </section>
+        </aside>
+
+        <section class="canvas-shell">
+          <div class="selection-pill" id="selection-pill">Selected: none</div>
+          <section class="canvas" id="canvas">
+            <div class="canvas-world" id="canvas-world">
+              <svg class="connections" id="connections"></svg>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div class="popup" id="node-popup" hidden>
+      <form class="popup-card" id="popup-form">
+        <h2>Create Node</h2>
+        <label>
+          <span class="field-label">Type</span>
+          <input id="popup-type-label" type="text" readonly />
+        </label>
+        <label>
+          <span class="field-label">What for?</span>
+          <input id="popup-purpose" type="text" maxlength="40" placeholder="Rent, EMI, salary..." required />
+        </label>
+        <label>
+          <span class="field-label">Amount (INR)</span>
+          <input id="popup-amount" type="number" min="0" step="0.01" value="0" required />
+        </label>
+        <div class="popup-actions">
+          <button type="button" id="popup-cancel" class="ghost-button">Cancel</button>
+          <button type="submit">Create</button>
+        </div>
+      </form>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+  </html>
