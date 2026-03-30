@@ -1,7 +1,6 @@
 const canvas = document.getElementById("canvas");
 const world = document.getElementById("canvas-world");
 const svg = document.getElementById("connections");
-const selectionPill = document.getElementById("selection-pill");
 const popup = document.getElementById("node-popup");
 const popupForm = document.getElementById("popup-form");
 const popupTypeLabel = document.getElementById("popup-type-label");
@@ -15,23 +14,34 @@ const nextMonthButton = document.getElementById("next-month");
 const zoomInButton = document.getElementById("zoom-in");
 const zoomOutButton = document.getElementById("zoom-out");
 const zoomResetButton = document.getElementById("zoom-reset");
-const toolButtons = document.querySelectorAll("[data-tool]");
+const downloadStatementButton = document.getElementById("download-statement");
+const toolbarIncomeButton = document.getElementById("toolbar-income");
+const toolbarExpenseButton = document.getElementById("toolbar-expense");
 
 const WORLD_WIDTH = 3600;
 const WORLD_HEIGHT = 2400;
 const STORAGE_KEY = "expense-flow-monthly-db-v1";
 const DB_CONFIG_PATH = "./db-config.js";
+const BALANCE_NODE_POSITION = { x: 420, y: 420 };
+const RECURRING_LAYOUT_SLOTS = [
+  { x: 650, y: 300 },
+  { x: 650, y: 430 },
+  { x: 650, y: 560 },
+  { x: 820, y: 360 },
+  { x: 820, y: 490 },
+];
 
 const PRESET_TEMPLATES = [
-  { type: "income", purpose: "Salary", amount: 85000, recurring: true, x: 1100, y: 320 },
-  { type: "expense", purpose: "Home EMI", amount: 26500, recurring: true, x: 1080, y: 560 },
-  { type: "expense", purpose: "Car EMI", amount: 12400, recurring: true, x: 1080, y: 760 },
-  { type: "expense", purpose: "Electricity Bill", amount: 2500, recurring: true, x: 1390, y: 540 },
-  { type: "expense", purpose: "Internet Bill", amount: 999, recurring: true, x: 1390, y: 740 },
+  { type: "income", purpose: "Salary", amount: 85000, recurring: true },
+  { type: "expense", purpose: "Home EMI", amount: 26500, recurring: true },
+  { type: "expense", purpose: "Car EMI", amount: 12400, recurring: true },
+  { type: "expense", purpose: "Electricity Bill", amount: 2500, recurring: true },
+  { type: "expense", purpose: "Internet Bill", amount: 999, recurring: true },
 ];
 
 const state = {
   db: null,
+  syncStatusNote: "",
   months: {},
   currentMonthKey: null,
   currentMonth: null,
@@ -214,25 +224,116 @@ function getStackTotal(node) {
   return [node, ...getSubtreeNodes(node.id)].reduce((sum, item) => sum + item.amount, 0);
 }
 
+function placeRecurringCards(nodes) {
+  return nodes.map((node, index) => {
+    const slot = RECURRING_LAYOUT_SLOTS[index] || {
+      x: 820 + Math.floor(index / RECURRING_LAYOUT_SLOTS.length) * 170,
+      y: 300 + (index % RECURRING_LAYOUT_SLOTS.length) * 120,
+    };
+
+    return {
+      ...node,
+      x: slot.x,
+      y: slot.y,
+    };
+  });
+}
+
+function buildRecurringNodesForMonth(monthKey, sourceMonth) {
+  return placeRecurringCards(
+    sourceMonth.nodes
+      .filter((node) => node.type !== "balance" && node.recurring)
+      .map((node, index) => ({
+        id: `${monthKey}-${index + 1}`,
+        type: node.type,
+        purpose: node.purpose,
+        amount: node.amount,
+        recurring: true,
+        connectedTo: null,
+        parentId: null,
+        connectedAt: null,
+        connectedSide: null,
+        targetSide: null,
+      }))
+  );
+}
+
+function refreshMonthNextId(month) {
+  const highestId = month.nodes.reduce((max, node) => {
+    if (!node.id.startsWith(`${month.key}-`)) {
+      return max;
+    }
+
+    const parsed = Number(node.id.slice(month.key.length + 1));
+    return Number.isFinite(parsed) ? Math.max(max, parsed) : max;
+  }, 0);
+
+  month.nextId = highestId + 1;
+}
+
+function maybeCompactRecurringCards(month) {
+  const recurringRoots = month.nodes.filter(
+    (node) => node.type !== "balance" && node.recurring && !node.parentId && !node.connectedTo
+  );
+
+  if (!recurringRoots.length) {
+    return;
+  }
+
+  const seededMonth = recurringRoots.every((node) => node.id.startsWith(`${month.key}-`));
+  const layoutLooksFar = recurringRoots.some((node) => node.x > 920 || node.y > 720);
+
+  if (!seededMonth || !layoutLooksFar) {
+    return;
+  }
+
+  const compactedNodes = new Map(placeRecurringCards(recurringRoots).map((node) => [node.id, node]));
+  month.nodes = month.nodes.map((node) => compactedNodes.get(node.id) || node);
+}
+
+function enableRecurringForAllSavedNodes(months) {
+  Object.values(months).forEach((month) => {
+    month.nodes?.forEach((node) => {
+      if (node.type !== "balance") {
+        node.recurring = true;
+      }
+    });
+  });
+}
+
+function syncFutureRecurringMonths(startMonthKey) {
+  const monthKeys = Object.keys(state.months).sort();
+  const startIndex = monthKeys.indexOf(startMonthKey);
+
+  if (startIndex === -1) {
+    return;
+  }
+
+  let sourceMonth = state.months[startMonthKey];
+
+  for (let index = startIndex + 1; index < monthKeys.length; index += 1) {
+    const monthKey = monthKeys[index];
+    const month = state.months[monthKey];
+    const balanceNode = month.nodes.find((node) => node.type === "balance") || {
+      id: "balance",
+      type: "balance",
+      x: BALANCE_NODE_POSITION.x,
+      y: BALANCE_NODE_POSITION.y,
+    };
+    const nonRecurringNodes = month.nodes.filter((node) => node.type !== "balance" && !node.recurring);
+    const recurringNodes = buildRecurringNodesForMonth(monthKey, sourceMonth);
+
+    month.nodes = [balanceNode, ...recurringNodes, ...nonRecurringNodes];
+    refreshMonthNextId(month);
+    sourceMonth = month;
+  }
+}
+
 function buildMonthSeed(monthKey, previousMonth) {
-  const presets = previousMonth
-    ? previousMonth.nodes
-        .filter((node) => node.type !== "balance" && node.recurring)
-        .map((node, index) => ({
-          id: `${monthKey}-${index + 1}`,
-          type: node.type,
-          purpose: node.purpose,
-          amount: node.amount,
-          recurring: true,
-          connectedTo: null,
-          parentId: null,
-          connectedAt: null,
-          connectedSide: null,
-          targetSide: null,
-          x: node.x,
-          y: node.y,
-        }))
-    : PRESET_TEMPLATES.map((template, index) => ({
+  const sourcePresets = previousMonth
+    ? buildRecurringNodesForMonth(monthKey, previousMonth)
+    : placeRecurringCards(
+        PRESET_TEMPLATES.map((template, index) => ({
         id: `${monthKey}-${index + 1}`,
         ...template,
         connectedTo: null,
@@ -240,20 +341,21 @@ function buildMonthSeed(monthKey, previousMonth) {
         connectedAt: null,
         connectedSide: null,
         targetSide: null,
-      }));
+      }))
+      );
 
   return {
     key: monthKey,
     baseBalance: previousMonth ? previousMonth.baseBalance : 50000,
-    nextId: presets.length + 1,
+    nextId: sourcePresets.length + 1,
     nodes: [
       {
         id: "balance",
         type: "balance",
-        x: 420,
-        y: 420,
+        x: BALANCE_NODE_POSITION.x,
+        y: BALANCE_NODE_POSITION.y,
       },
-      ...presets,
+      ...sourcePresets,
     ],
   };
 }
@@ -275,21 +377,38 @@ async function persist() {
   if (!state.db) {
     return;
   }
-  await state.db.save({ months: state.months });
+  try {
+    if (state.currentMonthKey) {
+      syncFutureRecurringMonths(state.currentMonthKey);
+    }
+    await state.db.save({ months: state.months });
+    if (state.db.kind === "cloud" && state.syncStatusNote) {
+      state.syncStatusNote = "";
+      updateMonthHeader();
+    }
+  } catch (error) {
+    console.error("Failed to persist ledger data.", error);
+    state.syncStatusNote = "Cloud sync hit an issue. Your latest changes may not be saved yet.";
+    updateMonthHeader();
+  }
 }
 
 function updateMonthHeader() {
   const monthDate = parseMonthKey(state.currentMonthKey);
   monthLabel.textContent = formatMonth(monthDate);
-  topbarNote.textContent =
-    state.db?.kind === "cloud"
-      ? "Cloud persistence is configured with Firestore."
-      : "Local storage is active. Add Firebase config in db-config.js to turn on Firestore sync.";
+  if (topbarNote) {
+    topbarNote.textContent =
+      state.syncStatusNote ||
+      (state.db?.kind === "cloud"
+        ? "Cloud persistence is configured with Firestore."
+        : "Local storage is active. Add Firebase config in db-config.js to turn on Firestore sync.");
+  }
 }
 
 async function selectMonth(monthKey) {
   state.currentMonthKey = monthKey;
   state.currentMonth = ensureMonth(monthKey);
+  maybeCompactRecurringCards(state.currentMonth);
   updateMonthHeader();
   await persist();
   render();
@@ -304,10 +423,43 @@ function shiftMonth(offset) {
 function setSelectedTool(tool) {
   state.selectedTool = tool;
   canvas.classList.toggle("tool-armed", Boolean(tool));
-  selectionPill.textContent = `Selected: ${tool ? `${tool} node` : "none"}`;
-  toolButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.tool === tool);
-  });
+  toolbarIncomeButton?.classList.toggle("active", tool === "income");
+  toolbarExpenseButton?.classList.toggle("active", tool === "expense");
+}
+
+function downloadMonthlyStatement() {
+  const month = getCurrentMonth();
+  const incomeTotal = month.nodes
+    .filter((node) => node.type === "income")
+    .reduce((sum, node) => sum + node.amount, 0);
+  const expenseTotal = month.nodes
+    .filter((node) => node.type === "expense")
+    .reduce((sum, node) => sum + node.amount, 0);
+  const closingBalance = calculateBalance();
+  const statement = [
+    `Monthly Statement: ${formatMonth(parseMonthKey(month.key))}`,
+    `Generated on: ${new Date().toLocaleString("en-IN")}`,
+    "",
+    `Opening Base Balance: ${formatCurrency(month.baseBalance)}`,
+    `Total Income: ${formatCurrency(incomeTotal)}`,
+    `Total Expenses: ${formatCurrency(expenseTotal)}`,
+    `Closing Balance: ${formatCurrency(closingBalance)}`,
+    "",
+    "Line Items",
+    ...month.nodes
+      .filter((node) => node.type !== "balance")
+      .map((node) => `- ${node.type.toUpperCase()}: ${node.purpose} | ${formatCurrency(node.amount)}${node.recurring ? " | recurring" : ""}`),
+  ].join("\n");
+
+  const blob = new Blob([statement], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${month.key}-statement.txt`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function showPopup(clientX, clientY) {
@@ -568,6 +720,14 @@ function createStackMarkup(node) {
     return "";
   }
 
+  const rootLineItem = `
+    <div class="stack-chip stack-chip-root">
+      <span class="stack-name">${node.purpose}</span>
+      <span>${formatCurrency(node.amount)}</span>
+      <span class="stack-chip-label">Root</span>
+    </div>
+  `;
+
   const items = descendants
     .slice(0, 4)
     .map(
@@ -586,8 +746,8 @@ function createStackMarkup(node) {
 
   return `
     <section class="stack-summary">
-      <p class="stack-meta">Stack total ${formatCurrency(getStackTotal(node))} across ${descendants.length + 1} node(s)</p>
-      <div class="stack-list">${items}</div>
+      <p class="stack-meta">Stacked bills</p>
+      <div class="stack-list">${rootLineItem}${items}</div>
       ${moreMarkup}
     </section>
   `;
@@ -696,17 +856,24 @@ function buildBalanceNode(node) {
   article.style.left = `${node.x}px`;
   article.style.top = `${node.y}px`;
   article.innerHTML = `
-    <div class="node-header">
-      <span class="node-type">Available Balance</span>
+    <div class="node-card">
+      <div class="balance-accent"></div>
+      <div class="node-head">
+        <div>
+          <p class="node-kicker">Consolidated Node</p>
+          <h3 class="node-title">Available Balance</h3>
+        </div>
+        <div class="node-icon">$</div>
+      </div>
+      <label>
+        <span class="field-label">Opening Balance</span>
+        <input class="balance-input" type="number" step="0.01" value="${getCurrentMonth().baseBalance}" />
+      </label>
+      <p class="balance-figure">${formatCurrency(calculateBalance())}</p>
+      <p class="balance-caption">0 connected root node(s)</p>
+      <div class="connector connector-left" data-side="left"></div>
+      <div class="connector connector-right" data-side="right"></div>
     </div>
-    <label>
-      <span class="field-label">Base Balance</span>
-      <input class="balance-input" type="number" step="0.01" value="${getCurrentMonth().baseBalance}" />
-    </label>
-    <p class="balance-figure">${formatCurrency(calculateBalance())}</p>
-    <p class="balance-caption">0 connected root node(s)</p>
-    <div class="connector connector-left" data-side="left"></div>
-    <div class="connector connector-right" data-side="right"></div>
   `;
 
   article.querySelector(".balance-input").addEventListener("input", async (event) => {
@@ -723,38 +890,64 @@ function buildBalanceNode(node) {
 function buildValueNode(node) {
   const article = document.createElement("article");
   const hasStack = getSubtreeNodes(node.id).length > 0;
+  const displayedAmount = hasStack ? getStackTotal(node) : node.amount;
   article.className = `node ${node.type}${node.connectedTo === "balance" || node.parentId ? " connected" : ""}${hasStack ? " stack-parent" : ""}`;
   article.dataset.nodeId = node.id;
   article.style.left = `${node.x}px`;
   article.style.top = `${node.y}px`;
+  const icon = node.type === "income" ? "¤" : "⌂";
+  const referencePrefix = node.type === "income" ? "SLRY" : "MORT";
+  const amountLabel = hasStack ? "Stack Total" : node.type === "income" ? "Credit Amount" : "Debit Amount";
+  const titleLabel = hasStack ? "Stacks" : node.purpose;
   article.innerHTML = `
-    <div class="node-header">
-      <span class="node-type">${node.type}</span>
-      <div class="node-actions">
-        ${buildIconButton("disconnect", !(node.connectedTo || node.parentId))}
-        ${buildIconButton("delete")}
+    <div class="node-card receipt">
+      <div class="node-head">
+        <div class="node-icon">${icon}</div>
+        <div class="receipt-ref">
+          <div>REF: ${referencePrefix}-${node.id.slice(-4).toUpperCase()}</div>
+          <div>${formatDate(node.connectedAt || getTodayIsoDate())}</div>
+        </div>
       </div>
+      <hr class="node-divider" />
+      <p class="node-kicker">${node.type === "income" ? "Source" : "Liability"}</p>
+      <h3 class="node-title">${titleLabel}</h3>
+      ${node.connectedTo === "balance" && node.connectedAt ? `<p class="date-chip">${formatDate(node.connectedAt)}</p>` : ""}
+      <div class="node-meta-row">
+        <label>
+          <span class="field-label">Value</span>
+          <input class="node-amount" type="number" step="0.01" value="${node.amount}" />
+        </label>
+      </div>
+      <div class="node-amount-figure">
+        ${amountLabel}
+        <strong class="node-amount-value">${node.type === "income" ? "+ " : "- "}${displayedAmount.toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}</strong>
+      </div>
+      <div class="node-head">
+        <label class="recurring-toggle">
+          <input class="node-recurring" type="checkbox" ${node.recurring ? "checked" : ""} />
+          Recurring next month
+        </label>
+        <div class="node-actions">
+          ${buildIconButton("disconnect", !(node.connectedTo || node.parentId))}
+          ${buildIconButton("delete")}
+        </div>
+      </div>
+      ${createStackMarkup(node)}
+      <div class="connector connector-out connector-left" data-side="left"></div>
+      <div class="connector connector-out connector-right" data-side="right"></div>
     </div>
-    <p class="purpose-line">${node.purpose}</p>
-    ${node.connectedTo === "balance" && node.connectedAt ? `<p class="date-chip">${formatDate(node.connectedAt)}</p>` : ""}
-    <div class="node-meta-row">
-      <label>
-        <span class="field-label">Value</span>
-        <input class="node-amount" type="number" step="0.01" value="${node.amount}" />
-      </label>
-    </div>
-    <label class="recurring-toggle">
-      <input class="node-recurring" type="checkbox" ${node.recurring ? "checked" : ""} />
-      Recurring next month
-    </label>
-    ${createStackMarkup(node)}
-    <div class="connector connector-out connector-left" data-side="left"></div>
-    <div class="connector connector-out connector-right" data-side="right"></div>
   `;
 
   article.querySelector(".node-amount").addEventListener("input", async (event) => {
     const parsed = Number(event.target.value);
     node.amount = Number.isFinite(parsed) ? Math.max(parsed, 0) : 0;
+    article.querySelector(".node-amount-value").textContent = `${node.type === "income" ? "+ " : "- "}${(hasStack ? getStackTotal(node) : node.amount).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
     refreshBalanceNode();
     await persist();
   });
@@ -840,7 +1033,7 @@ async function addNode(type, amount, purpose, position) {
     type,
     purpose,
     amount,
-    recurring: false,
+    recurring: true,
     connectedTo: null,
     parentId: null,
     connectedAt: null,
@@ -866,10 +1059,16 @@ function maybeRollToCurrentMonth() {
   }
 }
 
-toolButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    setSelectedTool(state.selectedTool === button.dataset.tool ? null : button.dataset.tool);
-  });
+toolbarIncomeButton?.addEventListener("click", () => {
+  setSelectedTool(state.selectedTool === "income" ? null : "income");
+});
+
+toolbarExpenseButton?.addEventListener("click", () => {
+  setSelectedTool(state.selectedTool === "expense" ? null : "expense");
+});
+
+downloadStatementButton?.addEventListener("click", () => {
+  downloadMonthlyStatement();
 });
 
 prevMonthButton.addEventListener("click", () => shiftMonth(-1));
@@ -1030,8 +1229,19 @@ window.addEventListener("resize", renderConnections);
 
 async function init() {
   state.db = await createDatabase();
-  const data = await state.db.load();
+  let data;
+
+  try {
+    data = await state.db.load();
+  } catch (error) {
+    console.error("Failed to load ledger data from the active database.", error);
+    state.db = createLocalDb();
+    data = await state.db.load();
+    state.syncStatusNote = "Cloud sync was unavailable, so the app fell back to local storage.";
+  }
+
   state.months = data.months || {};
+  enableRecurringForAllSavedNodes(state.months);
   const initialKey = monthKeyForDate(new Date());
   ensureMonth(initialKey);
   await selectMonth(initialKey);

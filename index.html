@@ -3,61 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Expense Flow Monthly</title>
+    <title>Money Daily</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">Monthly Expense Management</p>
+        <div class="brand-row">
+          <div class="brand-lockup">
+            <span class="brand-mark">Money Daily</span>
+          </div>
           <div class="month-row">
-            <button type="button" id="prev-month" class="month-nav" aria-label="Previous month">
+            <button type="button" id="prev-month" class="month-nav month-nav-arrow" aria-label="Previous month">
               &#8249;
             </button>
             <h1 id="month-label">March 2026</h1>
-            <button type="button" id="next-month" class="month-nav" aria-label="Next month">
+            <button type="button" id="next-month" class="month-nav month-nav-arrow" aria-label="Next month">
               &#8250;
             </button>
           </div>
-          <p class="topbar-note" id="topbar-note"></p>
         </div>
         <div class="topbar-actions">
-          <button type="button" id="zoom-out">-</button>
-          <button type="button" id="zoom-reset">100%</button>
-          <button type="button" id="zoom-in">+</button>
+          <button type="button" id="zoom-in" class="topbar-icon" aria-label="Zoom in">+</button>
+          <button type="button" id="zoom-out" class="topbar-icon" aria-label="Zoom out">-</button>
+          <button type="button" id="zoom-reset" class="topbar-icon topbar-reset" aria-label="Reset zoom">100%</button>
+          <div class="avatar-dot">M</div>
         </div>
       </header>
 
       <main class="workspace">
-        <aside class="left-rail">
-          <section class="rail-card">
-            <p class="rail-title">Add Node</p>
-            <button type="button" class="tool-button" data-tool="income">Income Node</button>
-            <button type="button" class="tool-button" data-tool="expense">Expense Node</button>
-            <p class="rail-help">Choose a node type first, then click on the canvas to place it.</p>
-          </section>
-
-          <section class="rail-card">
-            <p class="rail-title">Canvas</p>
-            <p class="rail-help">Hold `Space` and drag to pan.</p>
-            <p class="rail-help">Use arrow keys to move around the month canvas.</p>
-            <p class="rail-help">Drag from a node handle into balance or same-type nodes to connect.</p>
-          </section>
-
-          <section class="rail-card">
-            <p class="rail-title">Cloud Ready</p>
-            <p class="rail-help">This build uses local storage today and includes a Firestore-ready config file for cloud sync.</p>
-          </section>
-        </aside>
-
         <section class="canvas-shell">
-          <div class="selection-pill" id="selection-pill">Selected: none</div>
           <section class="canvas" id="canvas">
             <div class="canvas-world" id="canvas-world">
               <svg class="connections" id="connections"></svg>
             </div>
           </section>
+          <div class="canvas-tools" aria-hidden="true">
+            <button type="button" class="canvas-tool" id="toolbar-income" aria-label="Create income node">$+</button>
+            <button type="button" class="canvas-tool" id="toolbar-expense" aria-label="Create expense node">$-</button>
+            <button type="button" class="canvas-tool" id="download-statement" aria-label="Download statement">↓</button>
+          </div>
         </section>
       </main>
     </div>
@@ -86,4 +77,4 @@
 
     <script type="module" src="./app.js"></script>
   </body>
-  </html>
+</html>
