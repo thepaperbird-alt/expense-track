@@ -24,14 +24,6 @@ const STORAGE_KEY = "expense-flow-monthly-db-v1";
 const DB_CONFIG_PATH = "./db-config.js";
 const BALANCE_NODE_POSITION = { x: 420, y: 420 };
 const DEFAULT_SCALE = 0.8;
-const UNCONNECTED_LAYOUT = {
-  startX: 1120,
-  startY: 240,
-  columnGap: 160,
-  rowGap: 132,
-  columns: 2,
-  rowsPerColumnSet: 10,
-};
 const RECURRING_LAYOUT_SLOTS = [
   { x: 650, y: 300 },
   { x: 650, y: 430 },
@@ -252,21 +244,6 @@ function placeRecurringCards(nodes) {
   });
 }
 
-function placeUnconnectedCards(nodes) {
-  return nodes.map((node, index) => {
-    const group = Math.floor(index / (UNCONNECTED_LAYOUT.columns * UNCONNECTED_LAYOUT.rowsPerColumnSet));
-    const indexInGroup = index % (UNCONNECTED_LAYOUT.columns * UNCONNECTED_LAYOUT.rowsPerColumnSet);
-    const column = Math.floor(indexInGroup / UNCONNECTED_LAYOUT.rowsPerColumnSet);
-    const row = indexInGroup % UNCONNECTED_LAYOUT.rowsPerColumnSet;
-
-    return {
-      ...node,
-      x: UNCONNECTED_LAYOUT.startX + (group * UNCONNECTED_LAYOUT.columns + column) * UNCONNECTED_LAYOUT.columnGap,
-      y: UNCONNECTED_LAYOUT.startY + row * UNCONNECTED_LAYOUT.rowGap,
-    };
-  });
-}
-
 function buildRecurringNodesForMonth(monthKey, sourceMonth) {
   return placeRecurringCards(
     sourceMonth.nodes
@@ -317,19 +294,6 @@ function maybeCompactRecurringCards(month) {
 
   const compactedNodes = new Map(placeRecurringCards(recurringRoots).map((node) => [node.id, node]));
   month.nodes = month.nodes.map((node) => compactedNodes.get(node.id) || node);
-}
-
-function arrangeUnconnectedNodes(month) {
-  const unconnectedRoots = month.nodes.filter(
-    (node) => node.type !== "balance" && !node.parentId && !node.connectedTo
-  );
-
-  if (!unconnectedRoots.length) {
-    return;
-  }
-
-  const arrangedNodes = new Map(placeUnconnectedCards(unconnectedRoots).map((node) => [node.id, node]));
-  month.nodes = month.nodes.map((node) => arrangedNodes.get(node.id) || node);
 }
 
 function enableRecurringForAllSavedNodes(months) {
@@ -450,7 +414,6 @@ async function selectMonth(monthKey) {
   state.currentMonthKey = monthKey;
   state.currentMonth = ensureMonth(monthKey);
   maybeCompactRecurringCards(state.currentMonth);
-  arrangeUnconnectedNodes(state.currentMonth);
   updateMonthHeader();
   await persist();
   render();
@@ -687,7 +650,6 @@ async function finishConnection(targetId) {
     sourceNode.connectedAt = null;
   }
 
-  arrangeUnconnectedNodes(getCurrentMonth());
   state.connectionDraft = null;
   clearSnapState();
   await persist();
@@ -711,7 +673,6 @@ async function detachNode(nodeId) {
   node.connectedSide = null;
   node.targetSide = null;
   node.connectedAt = null;
-  arrangeUnconnectedNodes(getCurrentMonth());
   await persist();
   render();
 }
@@ -730,7 +691,6 @@ async function unstackNode(nodeId) {
     node.connectedAt = null;
   });
 
-  arrangeUnconnectedNodes(getCurrentMonth());
   await persist();
   render();
 }
@@ -863,12 +823,6 @@ function attachDrag(node, nodeEl) {
     nodeEl.classList.remove("dragging");
     nodeEl.releasePointerCapture(pointerId);
     pointerId = null;
-    if (node.type !== "balance" && !node.parentId && !node.connectedTo) {
-      arrangeUnconnectedNodes(getCurrentMonth());
-      await persist();
-      render();
-      return;
-    }
     await persist();
   }
 
@@ -1069,7 +1023,6 @@ function buildValueNode(node) {
 }
 
 function render() {
-  arrangeUnconnectedNodes(getCurrentMonth());
   svg.innerHTML = "";
   world.querySelectorAll(".node").forEach((nodeEl) => nodeEl.remove());
 
@@ -1102,7 +1055,6 @@ async function addNode(type, amount, purpose, position) {
     x: clamp(position.x, 24, WORLD_WIDTH - 260),
     y: clamp(position.y, 24, WORLD_HEIGHT - 150),
   });
-  arrangeUnconnectedNodes(month);
   await persist();
   render();
 }
