@@ -692,7 +692,6 @@ function refreshBalanceNode() {
     (node) => node.type !== "balance" && !node.parentId && node.connectedTo === "balance"
   ).length;
 
-  balanceEl.querySelector(".balance-input").value = getCurrentMonth().baseBalance;
   balanceEl.querySelector(".balance-total-input").value = calculateBalance().toFixed(2);
   balanceEl.querySelector(".balance-caption").textContent = `${connectedRoots} connected root node(s)`;
 }
@@ -886,22 +885,11 @@ function buildBalanceNode(node) {
         <span class="field-label">Available Balance</span>
         <input class="balance-total-input" type="number" step="0.01" value="${calculatedBalance.toFixed(2)}" />
       </label>
-      <label>
-        <span class="field-label">Base Balance</span>
-        <input class="balance-input" type="number" step="0.01" value="${getCurrentMonth().baseBalance}" />
-      </label>
       <p class="balance-caption">0 connected root node(s)</p>
       <div class="connector connector-left" data-side="left"></div>
       <div class="connector connector-right" data-side="right"></div>
     </div>
   `;
-
-  article.querySelector(".balance-input").addEventListener("input", async (event) => {
-    const parsed = Number(event.target.value);
-    getCurrentMonth().baseBalance = Number.isFinite(parsed) ? parsed : 0;
-    refreshBalanceNode();
-    await persist();
-  });
 
   article.querySelector(".balance-total-input").addEventListener("change", async (event) => {
     const parsed = Number(event.target.value);

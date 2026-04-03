@@ -282,11 +282,11 @@ input {
 }
 
 .node.balance {
-  width: 174px;
+  width: 204px;
 }
 
 .node.balance .node-card {
-  padding: 18px 14px 13px 17px;
+  padding: 22px 18px 16px 20px;
   background: var(--balance-bg);
   color: #fff;
   box-shadow: var(--shadow-strong);
@@ -398,8 +398,8 @@ input {
 }
 
 .node.balance .node-title {
-  font-size: 0.78rem;
-  line-height: 1.15;
+  font-size: 0.9rem;
+  line-height: 1.1;
 }
 
 .date-chip {
@@ -476,7 +476,7 @@ input {
   margin-bottom: 10px;
 }
 
-.balance-total-input {
+.node.balance .balance-total-input {
   border-color: rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
@@ -484,14 +484,16 @@ input {
   font-size: 1.1rem;
   font-weight: 800;
   letter-spacing: 0.01em;
+  line-height: 1.1;
+  padding: 10px 11px;
 }
 
 .balance-caption {
-  margin: 12px 0 0;
-  padding-top: 10px;
+  margin: 14px 0 0;
+  padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.62);
-  font-size: 0.58rem;
+  font-size: 0.62rem;
 }
 
 .node-actions {
