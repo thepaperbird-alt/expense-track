@@ -8,6 +8,8 @@
   --accent: #bf3a00;
   --accent-soft: #f5d8cf;
   --connection: rgba(191, 58, 0, 0.14);
+  --connection-income: #33d17a;
+  --connection-expense: #ff5a6b;
   --shadow: 0 18px 48px rgba(36, 28, 21, 0.08);
   --shadow-strong: 0 26px 64px rgba(36, 28, 21, 0.14);
   --balance-bg: #1f1c1b;
@@ -142,8 +144,8 @@ input {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle, rgba(196, 185, 175, 0.68) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(245, 239, 233, 0.96), rgba(236, 228, 221, 0.98));
+    radial-gradient(circle, rgba(120, 126, 134, 0.42) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(64, 68, 74, 0.98), rgba(47, 51, 56, 1));
   background-size: 26px 26px, auto;
 }
 
@@ -561,6 +563,18 @@ input {
   font-size: 0.56rem;
 }
 
+.stack-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.stack-summary-head .stack-meta {
+  margin: 0;
+}
+
 .stack-list {
   display: grid;
   gap: 6px;
@@ -605,6 +619,17 @@ input {
   background: rgba(251, 223, 230, 0.45);
 }
 
+.stack-unstack-button {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: "Space Mono", monospace;
+  font-size: 0.54rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .connector {
   position: absolute;
   top: 50%;
@@ -643,8 +668,16 @@ input {
 path.connection {
   fill: none;
   stroke: var(--connection);
-  stroke-width: 2;
+  stroke-width: 3;
   stroke-linecap: round;
+}
+
+path.connection-income {
+  stroke: var(--connection-income);
+}
+
+path.connection-expense {
+  stroke: var(--connection-expense);
 }
 
 .canvas-tools {
