@@ -23,6 +23,7 @@ const WORLD_HEIGHT = 2400;
 const STORAGE_KEY = "expense-flow-monthly-db-v1";
 const DB_CONFIG_PATH = "./db-config.js";
 const BALANCE_NODE_POSITION = { x: 420, y: 420 };
+const DEFAULT_SCALE = 0.8;
 const RECURRING_LAYOUT_SLOTS = [
   { x: 650, y: 300 },
   { x: 650, y: 430 },
@@ -214,10 +215,14 @@ function isIncludedInBalance(node) {
 function calculateBalance() {
   return (
     getCurrentMonth().baseBalance +
-    getCurrentMonth().nodes
-      .filter((node) => node.type !== "balance" && isIncludedInBalance(node))
-      .reduce((total, node) => total + (node.type === "income" ? node.amount : -node.amount), 0)
+    getConnectedFlowDelta()
   );
+}
+
+function getConnectedFlowDelta() {
+  return getCurrentMonth().nodes
+    .filter((node) => node.type !== "balance" && isIncludedInBalance(node))
+    .reduce((total, node) => total + (node.type === "income" ? node.amount : -node.amount), 0);
 }
 
 function getStackTotal(node) {
@@ -688,7 +693,7 @@ function refreshBalanceNode() {
   ).length;
 
   balanceEl.querySelector(".balance-input").value = getCurrentMonth().baseBalance;
-  balanceEl.querySelector(".balance-figure").textContent = formatCurrency(calculateBalance());
+  balanceEl.querySelector(".balance-total-input").value = calculateBalance().toFixed(2);
   balanceEl.querySelector(".balance-caption").textContent = `${connectedRoots} connected root node(s)`;
 }
 
@@ -720,9 +725,11 @@ function createStackMarkup(node) {
     return "";
   }
 
+  const stackName = node.stackName?.trim() || node.purpose;
+
   const rootLineItem = `
     <div class="stack-chip stack-chip-root">
-      <span class="stack-name">${node.purpose}</span>
+      <span class="stack-name">${stackName}</span>
       <span>${formatCurrency(node.amount)}</span>
       <span class="stack-chip-label">Root</span>
     </div>
@@ -746,7 +753,16 @@ function createStackMarkup(node) {
 
   return `
     <section class="stack-summary">
-      <p class="stack-meta">Stacked bills</p>
+      <label class="stack-title-edit">
+        <span class="stack-meta">Stack name</span>
+        <input
+          class="stack-name-input"
+          type="text"
+          maxlength="40"
+          value="${stackName}"
+          placeholder="Stack name"
+        />
+      </label>
       <div class="stack-list">${rootLineItem}${items}</div>
       ${moreMarkup}
     </section>
@@ -850,6 +866,7 @@ function buildIconButton(type, hidden = false) {
 }
 
 function buildBalanceNode(node) {
+  const calculatedBalance = calculateBalance();
   const article = document.createElement("article");
   article.className = "node balance";
   article.dataset.nodeId = node.id;
@@ -863,13 +880,16 @@ function buildBalanceNode(node) {
           <p class="node-kicker">Consolidated Node</p>
           <h3 class="node-title">Available Balance</h3>
         </div>
-        <div class="node-icon">$</div>
+        <div class="node-icon">₹</div>
       </div>
+      <label class="balance-total-edit">
+        <span class="field-label">Available Balance</span>
+        <input class="balance-total-input" type="number" step="0.01" value="${calculatedBalance.toFixed(2)}" />
+      </label>
       <label>
-        <span class="field-label">Opening Balance</span>
+        <span class="field-label">Base Balance</span>
         <input class="balance-input" type="number" step="0.01" value="${getCurrentMonth().baseBalance}" />
       </label>
-      <p class="balance-figure">${formatCurrency(calculateBalance())}</p>
       <p class="balance-caption">0 connected root node(s)</p>
       <div class="connector connector-left" data-side="left"></div>
       <div class="connector connector-right" data-side="right"></div>
@@ -879,6 +899,13 @@ function buildBalanceNode(node) {
   article.querySelector(".balance-input").addEventListener("input", async (event) => {
     const parsed = Number(event.target.value);
     getCurrentMonth().baseBalance = Number.isFinite(parsed) ? parsed : 0;
+    refreshBalanceNode();
+    await persist();
+  });
+
+  article.querySelector(".balance-total-input").addEventListener("change", async (event) => {
+    const parsed = Number(event.target.value);
+    getCurrentMonth().baseBalance = Number.isFinite(parsed) ? parsed - getConnectedFlowDelta() : 0;
     refreshBalanceNode();
     await persist();
   });
@@ -895,10 +922,10 @@ function buildValueNode(node) {
   article.dataset.nodeId = node.id;
   article.style.left = `${node.x}px`;
   article.style.top = `${node.y}px`;
-  const icon = node.type === "income" ? "¤" : "⌂";
+  const icon = node.type === "income" ? "₹+" : "₹-";
   const referencePrefix = node.type === "income" ? "SLRY" : "MORT";
   const amountLabel = hasStack ? "Stack Total" : node.type === "income" ? "Credit Amount" : "Debit Amount";
-  const titleLabel = hasStack ? "Stacks" : node.purpose;
+  const titleLabel = hasStack ? node.stackName?.trim() || node.purpose : node.purpose;
   article.innerHTML = `
     <div class="node-card receipt">
       <div class="node-head">
@@ -973,6 +1000,22 @@ function buildValueNode(node) {
       await detachNode(button.dataset.unstackId);
     });
   });
+
+  const stackNameInput = article.querySelector(".stack-name-input");
+  if (stackNameInput) {
+    stackNameInput.addEventListener("input", (event) => {
+      const nextName = event.target.value.trim() || node.purpose;
+      node.stackName = nextName;
+      article.querySelector(".node-title").textContent = nextName;
+      article.querySelector(".stack-chip-root .stack-name").textContent = nextName;
+    });
+
+    stackNameInput.addEventListener("change", async (event) => {
+      node.stackName = event.target.value.trim() || node.purpose;
+      event.target.value = node.stackName;
+      await persist();
+    });
+  }
 
   article.querySelectorAll(".connector-out").forEach((connector) => {
     connector.addEventListener("pointerdown", (event) => {
@@ -1076,7 +1119,7 @@ nextMonthButton.addEventListener("click", () => shiftMonth(1));
 
 zoomInButton.addEventListener("click", () => setZoom(state.scale + 0.1));
 zoomOutButton.addEventListener("click", () => setZoom(state.scale - 0.1));
-zoomResetButton.addEventListener("click", () => setZoom(1));
+zoomResetButton.addEventListener("click", () => setZoom(DEFAULT_SCALE));
 
 canvas.addEventListener(
   "wheel",
@@ -1247,7 +1290,7 @@ async function init() {
   await selectMonth(initialKey);
   setSelectedTool(null);
   setWorldTransform();
-  setZoom(1);
+  setZoom(DEFAULT_SCALE);
   setInterval(maybeRollToCurrentMonth, 60 * 1000);
 }
 
