@@ -299,7 +299,7 @@ function maybeCompactRecurringCards(month) {
 function enableRecurringForAllSavedNodes(months) {
   Object.values(months).forEach((month) => {
     month.nodes?.forEach((node) => {
-      if (node.type !== "balance") {
+      if (node.type !== "balance" && typeof node.recurring !== "boolean") {
         node.recurring = true;
       }
     });
@@ -724,46 +724,16 @@ function createStackMarkup(node) {
     return "";
   }
 
-  const stackName = node.stackName?.trim() || node.purpose;
-
-  const rootLineItem = `
-    <div class="stack-chip stack-chip-root">
-      <span class="stack-name">${stackName}</span>
-      <span>${formatCurrency(node.amount)}</span>
-      <span class="stack-chip-label">Root</span>
-    </div>
-  `;
-
-  const items = descendants
-    .slice(0, 4)
-    .map(
-      (child) => `
-        <div class="stack-chip">
-          <span class="stack-name">${child.purpose}</span>
-          <span>${formatCurrency(child.amount)}</span>
-          <button type="button" data-unstack-id="${child.id}">Unstack</button>
-        </div>
-      `
-    )
-    .join("");
-
-  const moreCount = descendants.length - 4;
-  const moreMarkup = moreCount > 0 ? `<p class="stack-meta">+${moreCount} more nested node(s)</p>` : "";
+  const itemCount = descendants.length + 1;
+  const stackTotal = getStackTotal(node);
 
   return `
     <section class="stack-summary">
-      <label class="stack-title-edit">
-        <span class="stack-meta">Stack name</span>
-        <input
-          class="stack-name-input"
-          type="text"
-          maxlength="40"
-          value="${stackName}"
-          placeholder="Stack name"
-        />
-      </label>
-      <div class="stack-list">${rootLineItem}${items}</div>
-      ${moreMarkup}
+      <p class="stack-meta">Stack summary</p>
+      <div class="stack-summary-rows">
+        <p class="stack-summary-row"><span>Items</span><strong>${itemCount}</strong></p>
+        <p class="stack-summary-row"><span>Stack Total</span><strong>${formatCurrency(stackTotal)}</strong></p>
+      </div>
     </section>
   `;
 }
@@ -913,7 +883,7 @@ function buildValueNode(node) {
   const icon = node.type === "income" ? "₹+" : "₹-";
   const referencePrefix = node.type === "income" ? "SLRY" : "MORT";
   const amountLabel = hasStack ? "Stack Total" : node.type === "income" ? "Credit Amount" : "Debit Amount";
-  const titleLabel = hasStack ? node.stackName?.trim() || node.purpose : node.purpose;
+  const titleLabel = node.purpose;
   article.innerHTML = `
     <div class="node-card receipt">
       <div class="node-head">
@@ -989,22 +959,6 @@ function buildValueNode(node) {
     });
   });
 
-  const stackNameInput = article.querySelector(".stack-name-input");
-  if (stackNameInput) {
-    stackNameInput.addEventListener("input", (event) => {
-      const nextName = event.target.value.trim() || node.purpose;
-      node.stackName = nextName;
-      article.querySelector(".node-title").textContent = nextName;
-      article.querySelector(".stack-chip-root .stack-name").textContent = nextName;
-    });
-
-    stackNameInput.addEventListener("change", async (event) => {
-      node.stackName = event.target.value.trim() || node.purpose;
-      event.target.value = node.stackName;
-      await persist();
-    });
-  }
-
   article.querySelectorAll(".connector-out").forEach((connector) => {
     connector.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
@@ -1064,7 +1018,7 @@ async function addNode(type, amount, purpose, position) {
     type,
     purpose,
     amount,
-    recurring: true,
+    recurring: false,
     connectedTo: null,
     parentId: null,
     connectedAt: null,

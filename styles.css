@@ -555,15 +555,6 @@ input {
   border-top: 1px dashed #ece6e0;
 }
 
-.stack-title-edit {
-  display: block;
-  margin-bottom: 8px;
-}
-
-.stack-name-input {
-  margin-top: 5px;
-}
-
 .stack-meta {
   margin: 0 0 8px;
   color: #918980;
@@ -575,61 +566,43 @@ input {
   gap: 6px;
 }
 
-.stack-chip {
+.stack-summary-rows {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 6px;
+}
+
+.stack-summary-row {
+  display: flex;
   align-items: center;
-  padding: 5px 6px;
-  border: 1px solid #eee8e2;
-  background: #fbf8f5;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+  padding: 6px 7px;
+  border: 1px dashed #e6dfd8;
+  background: rgba(255, 255, 255, 0.42);
   font-family: "Space Mono", monospace;
   font-size: 0.54rem;
 }
 
-.stack-chip-root {
-  background: #f6f1ec;
-  border-style: dashed;
-}
-
-.node.income .stack-chip {
-  background: #edf7ef;
-  border-color: #c6e2cd;
-}
-
-.node.income .stack-chip-root {
-  background: #e1f0e5;
-}
-
-.node.expense .stack-chip {
-  background: #fff0f3;
-  border-color: #ebcfd6;
-}
-
-.node.expense .stack-chip-root {
-  background: #f9e0e7;
-}
-
-.stack-chip-label {
-  color: #9a928a;
-  font-size: 0.5rem;
+.stack-summary-row span {
+  color: #8f8881;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
-.stack-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.stack-summary-row strong {
+  color: var(--ink);
+  font-size: 0.58rem;
 }
 
-.stack-chip button {
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 0.56rem;
+.node.income .stack-summary-row {
+  border-color: #c6e2cd;
+  background: rgba(223, 241, 228, 0.45);
+}
+
+.node.expense .stack-summary-row {
+  border-color: #ebcfd6;
+  background: rgba(251, 223, 230, 0.45);
 }
 
 .connector {
