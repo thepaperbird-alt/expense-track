@@ -23,13 +23,18 @@ const WORLD_HEIGHT = 2400;
 const STORAGE_KEY = "expense-flow-monthly-db-v1";
 const DB_CONFIG_PATH = "./db-config.js";
 const BALANCE_NODE_POSITION = { x: 420, y: 420 };
-const DEFAULT_SCALE = 0.8;
+const DEFAULT_SCALE = 0.6;
+const INITIAL_PAN_X = 190;
+const INITIAL_PAN_Y = 90;
+const WORLD_EDGE_PADDING = 8;
+const WORLD_MIN_X = -180;
+const WORLD_MIN_Y = -50;
 const RECURRING_LAYOUT_SLOTS = [
-  { x: 650, y: 300 },
-  { x: 650, y: 430 },
-  { x: 650, y: 560 },
-  { x: 820, y: 360 },
-  { x: 820, y: 490 },
+  { x: 940, y: 240 },
+  { x: 940, y: 380 },
+  { x: 940, y: 520 },
+  { x: 1130, y: 300 },
+  { x: 1130, y: 440 },
 ];
 
 const PRESET_TEMPLATES = [
@@ -49,8 +54,8 @@ const state = {
   selectedTool: null,
   pendingCreatePosition: null,
   scale: 1,
-  panX: 130,
-  panY: 120,
+  panX: INITIAL_PAN_X,
+  panY: INITIAL_PAN_Y,
   connectionDraft: null,
   isSpacePressed: false,
   isPanning: false,
@@ -140,6 +145,16 @@ async function createDatabase() {
 
 function setWorldTransform() {
   world.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.scale})`;
+}
+
+function syncConnectionCanvasBounds() {
+  const width = WORLD_WIDTH - WORLD_MIN_X + WORLD_EDGE_PADDING;
+  const height = WORLD_HEIGHT - WORLD_MIN_Y + WORLD_EDGE_PADDING;
+  svg.style.left = `${WORLD_MIN_X}px`;
+  svg.style.top = `${WORLD_MIN_Y}px`;
+  svg.setAttribute("width", `${width}`);
+  svg.setAttribute("height", `${height}`);
+  svg.setAttribute("viewBox", `${WORLD_MIN_X} ${WORLD_MIN_Y} ${width} ${height}`);
 }
 
 function getCanvasRect() {
@@ -232,8 +247,8 @@ function getStackTotal(node) {
 function placeRecurringCards(nodes) {
   return nodes.map((node, index) => {
     const slot = RECURRING_LAYOUT_SLOTS[index] || {
-      x: 820 + Math.floor(index / RECURRING_LAYOUT_SLOTS.length) * 170,
-      y: 300 + (index % RECURRING_LAYOUT_SLOTS.length) * 120,
+      x: 1130 + Math.floor(index / RECURRING_LAYOUT_SLOTS.length) * 190,
+      y: 240 + (index % RECURRING_LAYOUT_SLOTS.length) * 135,
     };
 
     return {
@@ -286,7 +301,7 @@ function maybeCompactRecurringCards(month) {
   }
 
   const seededMonth = recurringRoots.every((node) => node.id.startsWith(`${month.key}-`));
-  const layoutLooksFar = recurringRoots.some((node) => node.x > 920 || node.y > 720);
+  const layoutLooksFar = recurringRoots.some((node) => node.x > 1180 || node.y > 760);
 
   if (!seededMonth || !layoutLooksFar) {
     return;
@@ -791,8 +806,16 @@ function attachDrag(node, nodeEl) {
     }
 
     const point = getWorldPoint(event.clientX, event.clientY);
-    const nextX = clamp(point.x - offsetX, 18, WORLD_WIDTH - nodeEl.offsetWidth - 18);
-    const nextY = clamp(point.y - offsetY, 18, WORLD_HEIGHT - nodeEl.offsetHeight - 18);
+    const nextX = clamp(
+      point.x - offsetX,
+      WORLD_MIN_X,
+      WORLD_WIDTH - nodeEl.offsetWidth - WORLD_EDGE_PADDING
+    );
+    const nextY = clamp(
+      point.y - offsetY,
+      WORLD_MIN_Y,
+      WORLD_HEIGHT - nodeEl.offsetHeight - WORLD_EDGE_PADDING
+    );
     const deltaX = nextX - node.x;
     const deltaY = nextY - node.y;
     node.x = nextX;
@@ -1052,8 +1075,8 @@ async function addNode(type, amount, purpose, position) {
     connectedAt: null,
     connectedSide: null,
     targetSide: null,
-    x: clamp(position.x, 24, WORLD_WIDTH - 260),
-    y: clamp(position.y, 24, WORLD_HEIGHT - 150),
+    x: clamp(position.x, WORLD_MIN_X, WORLD_WIDTH - 260),
+    y: clamp(position.y, WORLD_MIN_Y, WORLD_HEIGHT - 150),
   });
   await persist();
   render();
@@ -1255,6 +1278,7 @@ async function init() {
 
   state.months = data.months || {};
   enableRecurringForAllSavedNodes(state.months);
+  syncConnectionCanvasBounds();
   const initialKey = monthKeyForDate(new Date());
   ensureMonth(initialKey);
   await selectMonth(initialKey);

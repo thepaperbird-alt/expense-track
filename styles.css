@@ -38,46 +38,7 @@ input {
   min-height: 100vh;
 }
 
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  height: 60px;
-  padding: 0 24px 0 30px;
-  background: rgba(255, 255, 255, 0.9);
-  border-bottom: 1px solid var(--line);
-}
-
-.brand-row {
-  display: flex;
-  align-items: center;
-  gap: 30px;
-}
-
-.brand-mark {
-  font-family: "Manrope", sans-serif;
-  font-size: 1.04rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: -0.03em;
-}
-
-.eyebrow {
-  margin: 0;
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--muted);
-}
-
-.month-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.month-row h1 {
+.month-floating h1 {
   margin: 0;
   padding-bottom: 4px;
   border-bottom: 2px solid rgba(191, 58, 0, 0.28);
@@ -104,10 +65,27 @@ input {
   color: var(--muted);
 }
 
-.topbar-actions {
+.canvas-floating {
+  position: absolute;
+  top: 18px;
+  z-index: 12;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14px 34px rgba(17, 20, 24, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.month-floating {
+  left: 18px;
+}
+
+.zoom-floating {
+  right: 18px;
 }
 
 .topbar-icon {
@@ -122,26 +100,14 @@ input {
   font-weight: 600;
 }
 
-.avatar-dot {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #27313d, #151a21);
-  color: #f9c087;
-  font-family: "Manrope", sans-serif;
-  font-size: 0.88rem;
-  font-weight: 800;
-}
-
 .workspace {
   display: block;
-  min-height: calc(100vh - 60px);
+  min-height: 100vh;
 }
 
 .canvas-shell {
   position: relative;
+  min-height: 100vh;
   overflow: hidden;
   background:
     radial-gradient(circle, rgba(120, 126, 134, 0.42) 1px, transparent 1px),
@@ -151,7 +117,7 @@ input {
 
 .canvas {
   position: relative;
-  height: calc(100vh - 60px);
+  height: 100vh;
   min-height: 680px;
   overflow: hidden;
 }
@@ -179,11 +145,9 @@ input {
 
 .connections {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
   z-index: 1;
+  overflow: visible;
 }
 
 .node {
@@ -760,22 +724,26 @@ path.connection-expense {
 
 @media (max-width: 980px) {
   .canvas {
-    height: calc(100vh - 280px);
+    height: 100vh;
   }
 }
 
 @media (max-width: 720px) {
-  .topbar {
-    flex-direction: column;
-    align-items: flex-start;
-    height: auto;
-    padding: 14px 16px;
+  .canvas-floating {
+    top: 14px;
+    padding: 8px 10px;
   }
 
-  .brand-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+  .month-floating {
+    left: 14px;
+  }
+
+  .zoom-floating {
+    right: 14px;
+  }
+
+  .month-floating h1 {
+    font-size: 1rem;
   }
 
   .canvas {

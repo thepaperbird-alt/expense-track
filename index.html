@@ -14,12 +14,9 @@
   </head>
   <body>
     <div class="app-shell">
-      <header class="topbar">
-        <div class="brand-row">
-          <div class="brand-lockup">
-            <span class="brand-mark">Money Daily</span>
-          </div>
-          <div class="month-row">
+      <main class="workspace">
+        <section class="canvas-shell">
+          <div class="canvas-floating month-floating">
             <button type="button" id="prev-month" class="month-nav month-nav-arrow" aria-label="Previous month">
               &#8249;
             </button>
@@ -28,17 +25,13 @@
               &#8250;
             </button>
           </div>
-        </div>
-        <div class="topbar-actions">
+
+          <div class="canvas-floating zoom-floating">
           <button type="button" id="zoom-in" class="topbar-icon" aria-label="Zoom in">+</button>
           <button type="button" id="zoom-out" class="topbar-icon" aria-label="Zoom out">-</button>
           <button type="button" id="zoom-reset" class="topbar-icon topbar-reset" aria-label="Reset zoom">100%</button>
-          <div class="avatar-dot">M</div>
-        </div>
-      </header>
+          </div>
 
-      <main class="workspace">
-        <section class="canvas-shell">
           <section class="canvas" id="canvas">
             <div class="canvas-world" id="canvas-world">
               <svg class="connections" id="connections"></svg>
