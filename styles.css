@@ -13,6 +13,8 @@
   --shadow: 0 18px 48px rgba(36, 28, 21, 0.08);
   --shadow-strong: 0 26px 64px rgba(36, 28, 21, 0.14);
   --balance-bg: #1f1c1b;
+  --axis-bank: #a30b5c;
+  --kotak-bank: #c61f1f;
 }
 
 * {
@@ -249,6 +251,7 @@ input {
 
 .node.balance {
   width: 204px;
+  z-index: 4;
 }
 
 .node.balance .node-card {
@@ -270,6 +273,14 @@ input {
   bottom: 0;
   width: 7px;
   background: var(--accent);
+}
+
+.node.balance.axis-bank .balance-accent {
+  background: var(--axis-bank);
+}
+
+.node.balance.kotak-bank .balance-accent {
+  background: var(--kotak-bank);
 }
 
 .node-head {
@@ -343,6 +354,14 @@ input {
 
 .node.balance .node-kicker {
   color: var(--accent);
+}
+
+.node.balance.axis-bank .node-kicker {
+  color: var(--axis-bank);
+}
+
+.node.balance.kotak-bank .node-kicker {
+  color: var(--kotak-bank);
 }
 
 .node.income .node-kicker {

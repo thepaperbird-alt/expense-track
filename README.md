@@ -13,12 +13,12 @@ Then open `http://localhost:3000`.
 ## Current Features
 
 - Monthly header with current month view
-- One balance node plus recurring preset nodes such as salary, EMI, and bills
+- Two bank balance nodes for Axis Bank and Kotak Bank, plus recurring preset nodes such as salary, EMI, and bills
 - Left toolbar to choose `Income` or `Expense` before placing a node
 - No random click-to-create behavior
 - Recurring toggle on nodes so they seed the next month automatically
 - Month data persisted locally by default, with Firestore-ready cloud sync scaffolding included
-- Pan, zoom, drag, connect-to-balance, and same-type stacking
+- Pan, zoom, drag, connect-to-bank, and same-type stacking
 
 ## Firestore Setup
 

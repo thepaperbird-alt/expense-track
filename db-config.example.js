@@ -10,6 +10,14 @@ const FIREBASE_CONFIG = {
 };
 
 const COLLECTION_NAME = "expenseFlowMonths";
+const BALANCE_NODE_DEFS = [
+  { id: "balance-axis", bankKey: "axis", x: 320, y: 120 },
+  { id: "balance-kotak", bankKey: "kotak", x: 580, y: 120 },
+];
+const DEFAULT_BASE_BALANCES = {
+  axis: 50000,
+  kotak: 0,
+};
 
 function createLocalFallback(storageKey) {
   return {
@@ -48,12 +56,38 @@ function normalizeNode(node) {
 }
 
 function normalizeMonth(monthKey, month) {
-  const nodes = Array.isArray(month?.nodes) ? month.nodes.map(normalizeNode) : [];
-  const hasBalanceNode = nodes.some((node) => node.id === "balance" && node.type === "balance");
+  const rawNodes = Array.isArray(month?.nodes) ? month.nodes.map(normalizeNode) : [];
+  const legacyBaseBalance = Number.isFinite(Number(month?.baseBalance)) ? Number(month.baseBalance) : null;
+  const baseBalances = {
+    ...DEFAULT_BASE_BALANCES,
+    ...(month?.baseBalances && typeof month.baseBalances === "object" ? month.baseBalances : {}),
+  };
 
-  if (!hasBalanceNode) {
-    nodes.unshift({
-      id: "balance",
+  if (legacyBaseBalance !== null && !Number.isFinite(Number(month?.baseBalances?.axis))) {
+    baseBalances.axis = legacyBaseBalance;
+  }
+
+  const normalizedNodes = rawNodes
+    .filter((node) => node.type !== "balance")
+    .map((node) => ({
+      ...node,
+      connectedTo: node.connectedTo === "balance" ? "balance-axis" : node.connectedTo,
+    }));
+
+  const balanceNodes = BALANCE_NODE_DEFS.map((balanceDef) => {
+    const existingNode = rawNodes.find((node) => node.id === balanceDef.id && node.type === "balance");
+
+    if (existingNode) {
+      const looksLikeLegacyPosition = existingNode.y >= 360;
+      return {
+        ...existingNode,
+        x: looksLikeLegacyPosition ? balanceDef.x : existingNode.x,
+        y: looksLikeLegacyPosition ? balanceDef.y : existingNode.y,
+      };
+    }
+
+    return {
+      id: balanceDef.id,
       type: "balance",
       purpose: "",
       amount: 0,
@@ -63,14 +97,19 @@ function normalizeMonth(monthKey, month) {
       connectedAt: null,
       connectedSide: null,
       targetSide: null,
-      x: 420,
-      y: 420,
-    });
-  }
+      x: balanceDef.x,
+      y: balanceDef.y,
+    };
+  });
+
+  const nodes = [...balanceNodes, ...normalizedNodes];
 
   return {
     key: monthKey,
-    baseBalance: Number.isFinite(Number(month?.baseBalance)) ? Number(month.baseBalance) : 0,
+    baseBalances: {
+      axis: Number.isFinite(Number(baseBalances.axis)) ? Number(baseBalances.axis) : DEFAULT_BASE_BALANCES.axis,
+      kotak: Number.isFinite(Number(baseBalances.kotak)) ? Number(baseBalances.kotak) : DEFAULT_BASE_BALANCES.kotak,
+    },
     nextId: Number.isFinite(Number(month?.nextId)) ? Number(month.nextId) : nodes.length + 1,
     nodes,
   };

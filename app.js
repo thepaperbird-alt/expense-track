@@ -22,10 +22,34 @@ const WORLD_WIDTH = 3600;
 const WORLD_HEIGHT = 2400;
 const STORAGE_KEY = "expense-flow-monthly-db-v1";
 const DB_CONFIG_PATH = "./db-config.js";
-const BALANCE_NODE_POSITION = { x: 420, y: 420 };
+const BALANCE_NODE_DEFS = [
+  {
+    id: "balance-axis",
+    bankKey: "axis",
+    title: "Axis Bank",
+    kicker: "Available Balance",
+    accentClass: "axis-bank",
+    x: 320,
+    y: 120,
+  },
+  {
+    id: "balance-kotak",
+    bankKey: "kotak",
+    title: "Kotak Bank",
+    kicker: "Available Balance",
+    accentClass: "kotak-bank",
+    x: 580,
+    y: 120,
+  },
+];
+const BALANCE_NODE_IDS = new Set(BALANCE_NODE_DEFS.map((node) => node.id));
+const DEFAULT_BASE_BALANCES = {
+  axis: 50000,
+  kotak: 0,
+};
 const DEFAULT_SCALE = 0.6;
 const INITIAL_PAN_X = 190;
-const INITIAL_PAN_Y = 90;
+const INITIAL_PAN_Y = 24;
 const WORLD_EDGE_PADDING = 8;
 const WORLD_MIN_X = -180;
 const WORLD_MIN_Y = -50;
@@ -192,6 +216,25 @@ function getVisibleNodes() {
   return getCurrentMonth().nodes.filter((node) => node.type === "balance" || !node.parentId);
 }
 
+function getBalanceDefinition(balanceNodeId) {
+  return BALANCE_NODE_DEFS.find((node) => node.id === balanceNodeId) || BALANCE_NODE_DEFS[0];
+}
+
+function getMonthBaseBalance(balanceNodeId) {
+  const bankKey = getBalanceDefinition(balanceNodeId).bankKey;
+  const month = getCurrentMonth();
+
+  if (!month.baseBalances || typeof month.baseBalances !== "object") {
+    month.baseBalances = { ...DEFAULT_BASE_BALANCES };
+  }
+
+  if (!Number.isFinite(Number(month.baseBalances[bankKey]))) {
+    month.baseBalances[bankKey] = DEFAULT_BASE_BALANCES[bankKey] || 0;
+  }
+
+  return Number(month.baseBalances[bankKey]);
+}
+
 function getSubtreeNodes(nodeId) {
   const descendants = [];
 
@@ -224,19 +267,20 @@ function isIncludedInBalance(node) {
     return false;
   }
   const root = getRootNode(node);
-  return root?.connectedTo === "balance";
+  return BALANCE_NODE_IDS.has(root?.connectedTo);
 }
 
-function calculateBalance() {
+function calculateBalance(balanceNodeId) {
   return (
-    getCurrentMonth().baseBalance +
-    getConnectedFlowDelta()
+    getMonthBaseBalance(balanceNodeId) +
+    getConnectedFlowDelta(balanceNodeId)
   );
 }
 
-function getConnectedFlowDelta() {
+function getConnectedFlowDelta(balanceNodeId) {
   return getCurrentMonth().nodes
     .filter((node) => node.type !== "balance" && isIncludedInBalance(node))
+    .filter((node) => getRootNode(node)?.connectedTo === balanceNodeId)
     .reduce((total, node) => total + (node.type === "income" ? node.amount : -node.amount), 0);
 }
 
@@ -334,16 +378,18 @@ function syncFutureRecurringMonths(startMonthKey) {
   for (let index = startIndex + 1; index < monthKeys.length; index += 1) {
     const monthKey = monthKeys[index];
     const month = state.months[monthKey];
-    const balanceNode = month.nodes.find((node) => node.type === "balance") || {
-      id: "balance",
-      type: "balance",
-      x: BALANCE_NODE_POSITION.x,
-      y: BALANCE_NODE_POSITION.y,
-    };
+    const balanceNodes = BALANCE_NODE_DEFS.map((balanceDef) => (
+      month.nodes.find((node) => node.id === balanceDef.id && node.type === "balance") || {
+        id: balanceDef.id,
+        type: "balance",
+        x: balanceDef.x,
+        y: balanceDef.y,
+      }
+    ));
     const nonRecurringNodes = month.nodes.filter((node) => node.type !== "balance" && !node.recurring);
     const recurringNodes = buildRecurringNodesForMonth(monthKey, sourceMonth);
 
-    month.nodes = [balanceNode, ...recurringNodes, ...nonRecurringNodes];
+    month.nodes = [...balanceNodes, ...recurringNodes, ...nonRecurringNodes];
     refreshMonthNextId(month);
     sourceMonth = month;
   }
@@ -366,15 +412,17 @@ function buildMonthSeed(monthKey, previousMonth) {
 
   return {
     key: monthKey,
-    baseBalance: previousMonth ? previousMonth.baseBalance : 50000,
+    baseBalances: previousMonth?.baseBalances
+      ? { ...DEFAULT_BASE_BALANCES, ...previousMonth.baseBalances }
+      : { ...DEFAULT_BASE_BALANCES },
     nextId: sourcePresets.length + 1,
     nodes: [
-      {
-        id: "balance",
+      ...BALANCE_NODE_DEFS.map((balanceDef) => ({
+        id: balanceDef.id,
         type: "balance",
-        x: BALANCE_NODE_POSITION.x,
-        y: BALANCE_NODE_POSITION.y,
-      },
+        x: balanceDef.x,
+        y: balanceDef.y,
+      })),
       ...sourcePresets,
     ],
   };
@@ -455,15 +503,20 @@ function downloadMonthlyStatement() {
   const expenseTotal = month.nodes
     .filter((node) => node.type === "expense")
     .reduce((sum, node) => sum + node.amount, 0);
-  const closingBalance = calculateBalance();
+  const axisBalance = calculateBalance("balance-axis");
+  const kotakBalance = calculateBalance("balance-kotak");
+  const closingBalance = axisBalance + kotakBalance;
   const statement = [
     `Monthly Statement: ${formatMonth(parseMonthKey(month.key))}`,
     `Generated on: ${new Date().toLocaleString("en-IN")}`,
     "",
-    `Opening Base Balance: ${formatCurrency(month.baseBalance)}`,
+    `Opening Axis Balance: ${formatCurrency(getMonthBaseBalance("balance-axis"))}`,
+    `Opening Kotak Balance: ${formatCurrency(getMonthBaseBalance("balance-kotak"))}`,
     `Total Income: ${formatCurrency(incomeTotal)}`,
     `Total Expenses: ${formatCurrency(expenseTotal)}`,
-    `Closing Balance: ${formatCurrency(closingBalance)}`,
+    `Closing Axis Balance: ${formatCurrency(axisBalance)}`,
+    `Closing Kotak Balance: ${formatCurrency(kotakBalance)}`,
+    `Closing Total Balance: ${formatCurrency(closingBalance)}`,
     "",
     "Line Items",
     ...month.nodes
@@ -595,7 +648,7 @@ function renderConnections() {
   svg.innerHTML = "";
 
   getCurrentMonth().nodes
-    .filter((node) => node.type !== "balance" && (node.connectedTo === "balance" || node.parentId))
+    .filter((node) => node.type !== "balance" && (node.connectedTo || node.parentId))
     .forEach((node) => {
       const sourceEl = world.querySelector(`[data-node-id="${node.id}"]`);
       const targetId = node.parentId || node.connectedTo;
@@ -657,7 +710,7 @@ async function finishConnection(targetId) {
 
   if (targetNode.type === "balance") {
     sourceNode.parentId = null;
-    sourceNode.connectedTo = "balance";
+    sourceNode.connectedTo = targetNode.id;
     sourceNode.connectedAt = getTodayIsoDate();
   } else if (targetNode.type === sourceNode.type) {
     sourceNode.parentId = targetNode.id;
@@ -717,18 +770,20 @@ async function deleteNode(nodeId) {
   render();
 }
 
-function refreshBalanceNode() {
-  const balanceEl = world.querySelector('[data-node-id="balance"]');
-  if (!balanceEl) {
-    return;
-  }
+function refreshBalanceNodes() {
+  BALANCE_NODE_DEFS.forEach((balanceDef) => {
+    const balanceEl = world.querySelector(`[data-node-id="${balanceDef.id}"]`);
+    if (!balanceEl) {
+      return;
+    }
 
-  const connectedRoots = getCurrentMonth().nodes.filter(
-    (node) => node.type !== "balance" && !node.parentId && node.connectedTo === "balance"
-  ).length;
+    const connectedRoots = getCurrentMonth().nodes.filter(
+      (node) => node.type !== "balance" && !node.parentId && node.connectedTo === balanceDef.id
+    ).length;
 
-  balanceEl.querySelector(".balance-total-input").value = calculateBalance().toFixed(2);
-  balanceEl.querySelector(".balance-caption").textContent = `${connectedRoots} connected root node(s)`;
+    balanceEl.querySelector(".balance-total-input").value = calculateBalance(balanceDef.id).toFixed(2);
+    balanceEl.querySelector(".balance-caption").textContent = `${connectedRoots} connected root node(s)`;
+  });
 }
 
 function updateConnectionDraft(clientX, clientY) {
@@ -833,7 +888,7 @@ function attachDrag(node, nodeEl) {
     nodeEl.style.left = `${node.x}px`;
     nodeEl.style.top = `${node.y}px`;
     if (node.type === "balance") {
-      refreshBalanceNode();
+      refreshBalanceNodes();
     }
     renderConnections();
   });
@@ -881,9 +936,10 @@ function buildIconButton(type, hidden = false) {
 }
 
 function buildBalanceNode(node) {
-  const calculatedBalance = calculateBalance();
+  const balanceDef = getBalanceDefinition(node.id);
+  const calculatedBalance = calculateBalance(node.id);
   const article = document.createElement("article");
-  article.className = "node balance";
+  article.className = `node balance ${balanceDef.accentClass}`;
   article.dataset.nodeId = node.id;
   article.style.left = `${node.x}px`;
   article.style.top = `${node.y}px`;
@@ -892,8 +948,8 @@ function buildBalanceNode(node) {
       <div class="balance-accent"></div>
       <div class="node-head">
         <div>
-          <p class="node-kicker">Consolidated Node</p>
-          <h3 class="node-title">Available Balance</h3>
+          <p class="node-kicker">${balanceDef.kicker}</p>
+          <h3 class="node-title">${balanceDef.title}</h3>
         </div>
         <div class="node-icon">₹</div>
       </div>
@@ -909,8 +965,15 @@ function buildBalanceNode(node) {
 
   article.querySelector(".balance-total-input").addEventListener("change", async (event) => {
     const parsed = Number(event.target.value);
-    getCurrentMonth().baseBalance = Number.isFinite(parsed) ? parsed - getConnectedFlowDelta() : 0;
-    refreshBalanceNode();
+    const month = getCurrentMonth();
+    const bankKey = balanceDef.bankKey;
+
+    if (!month.baseBalances || typeof month.baseBalances !== "object") {
+      month.baseBalances = { ...DEFAULT_BASE_BALANCES };
+    }
+
+    month.baseBalances[bankKey] = Number.isFinite(parsed) ? parsed - getConnectedFlowDelta(node.id) : 0;
+    refreshBalanceNodes();
     await persist();
   });
 
@@ -922,7 +985,7 @@ function buildValueNode(node) {
   const article = document.createElement("article");
   const hasStack = getSubtreeNodes(node.id).length > 0;
   const displayedAmount = hasStack ? getStackTotal(node) : node.amount;
-  article.className = `node ${node.type}${node.connectedTo === "balance" || node.parentId ? " connected" : ""}${hasStack ? " stack-parent" : ""}`;
+  article.className = `node ${node.type}${node.connectedTo || node.parentId ? " connected" : ""}${hasStack ? " stack-parent" : ""}`;
   article.dataset.nodeId = node.id;
   article.style.left = `${node.x}px`;
   article.style.top = `${node.y}px`;
@@ -942,7 +1005,7 @@ function buildValueNode(node) {
       <hr class="node-divider" />
       <p class="node-kicker">${node.type === "income" ? "Source" : "Liability"}</p>
       <h3 class="node-title">${titleLabel}</h3>
-      ${node.connectedTo === "balance" && node.connectedAt ? `<p class="date-chip">${formatDate(node.connectedAt)}</p>` : ""}
+      ${BALANCE_NODE_IDS.has(node.connectedTo) && node.connectedAt ? `<p class="date-chip">${formatDate(node.connectedAt)}</p>` : ""}
       <div class="node-meta-row">
         <label>
           <span class="field-label">Value</span>
@@ -979,7 +1042,7 @@ function buildValueNode(node) {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
-    refreshBalanceNode();
+    refreshBalanceNodes();
     await persist();
   });
 
@@ -1057,7 +1120,7 @@ function render() {
     }
   });
 
-  refreshBalanceNode();
+  refreshBalanceNodes();
   renderConnections();
 }
 
