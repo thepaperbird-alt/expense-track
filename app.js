@@ -819,13 +819,12 @@ function createStackMarkup(node) {
 
   return `
     <section class="stack-summary">
-      <div class="stack-summary-head">
-        <p class="stack-meta">Stack summary</p>
-        <button type="button" class="stack-unstack-button" data-unstack-stack="${node.id}">Unstack</button>
-      </div>
       <div class="stack-summary-rows">
+        <p class="stack-summary-row"><span>Total</span><strong>${formatCurrency(stackTotal)}</strong></p>
         <p class="stack-summary-row"><span>Items</span><strong>${itemCount}</strong></p>
-        <p class="stack-summary-row"><span>Stack Total</span><strong>${formatCurrency(stackTotal)}</strong></p>
+      </div>
+      <div class="stack-actions">
+        <button type="button" class="stack-unstack-button" data-unstack-stack="${node.id}">Unstack</button>
       </div>
     </section>
   `;
@@ -989,67 +988,25 @@ function buildValueNode(node) {
   article.dataset.nodeId = node.id;
   article.style.left = `${node.x}px`;
   article.style.top = `${node.y}px`;
-  const icon = node.type === "income" ? "₹+" : "₹-";
-  const referencePrefix = node.type === "income" ? "SLRY" : "MORT";
-  const amountLabel = hasStack ? "Stack Total" : node.type === "income" ? "Credit Amount" : "Debit Amount";
-  const titleLabel = node.purpose;
+  const amountPrefix = node.type === "income" ? "+ " : "- ";
   article.innerHTML = `
-    <div class="node-card receipt">
-      <div class="node-head">
-        <div class="node-icon">${icon}</div>
-        <div class="receipt-ref">
-          <div>REF: ${referencePrefix}-${node.id.slice(-4).toUpperCase()}</div>
-          <div>${formatDate(node.connectedAt || getTodayIsoDate())}</div>
-        </div>
-      </div>
-      <hr class="node-divider" />
-      <p class="node-kicker">${node.type === "income" ? "Source" : "Liability"}</p>
-      <h3 class="node-title">${titleLabel}</h3>
-      ${BALANCE_NODE_IDS.has(node.connectedTo) && node.connectedAt ? `<p class="date-chip">${formatDate(node.connectedAt)}</p>` : ""}
-      <div class="node-meta-row">
-        <label>
-          <span class="field-label">Value</span>
-          <input class="node-amount" type="number" step="0.01" value="${node.amount}" />
-        </label>
-      </div>
+    <div class="node-card compact-card">
+      <p class="node-compact-title">${node.purpose}</p>
       <div class="node-amount-figure">
-        ${amountLabel}
-        <strong class="node-amount-value">${node.type === "income" ? "+ " : "- "}${displayedAmount.toLocaleString("en-IN", {
+        <strong class="node-amount-value">${amountPrefix}${displayedAmount.toLocaleString("en-IN", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })}</strong>
       </div>
-      <div class="node-head">
-        <label class="recurring-toggle">
-          <input class="node-recurring" type="checkbox" ${node.recurring ? "checked" : ""} />
-          Recurring next month
-        </label>
-        <div class="node-actions">
-          ${buildIconButton("disconnect", !(node.connectedTo || node.parentId))}
-          ${buildIconButton("delete")}
-        </div>
+      <div class="node-actions compact-actions">
+        <button type="button" class="node-action-text disconnect-button" ${!(node.connectedTo || node.parentId) ? "hidden" : ""}>Unlink</button>
+        <button type="button" class="node-action-text delete-button">Delete</button>
       </div>
       ${createStackMarkup(node)}
       <div class="connector connector-out connector-left" data-side="left"></div>
       <div class="connector connector-out connector-right" data-side="right"></div>
     </div>
   `;
-
-  article.querySelector(".node-amount").addEventListener("input", async (event) => {
-    const parsed = Number(event.target.value);
-    node.amount = Number.isFinite(parsed) ? Math.max(parsed, 0) : 0;
-    article.querySelector(".node-amount-value").textContent = `${node.type === "income" ? "+ " : "- "}${(hasStack ? getStackTotal(node) : node.amount).toLocaleString("en-IN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-    refreshBalanceNodes();
-    await persist();
-  });
-
-  article.querySelector(".node-recurring").addEventListener("change", async (event) => {
-    node.recurring = event.target.checked;
-    await persist();
-  });
 
   article.querySelector(".disconnect-button")?.addEventListener("click", async (event) => {
     event.stopPropagation();

@@ -155,7 +155,7 @@ input {
 .node {
   position: absolute;
   z-index: 2;
-  width: 128px;
+  width: 140px;
   cursor: grab;
 }
 
@@ -165,10 +165,15 @@ input {
 
 .node-card {
   position: relative;
-  padding: 15px 12px 13px;
+  padding: 12px 11px 11px;
   background: var(--panel-solid);
   border: 1px solid #f0ece8;
   box-shadow: var(--shadow);
+}
+
+.node-card.compact-card {
+  display: grid;
+  gap: 8px;
 }
 
 .node.income .node-card {
@@ -430,23 +435,34 @@ input {
 }
 
 .node-amount-figure {
-  margin: 11px 0 0;
-  text-align: right;
+  margin: 0;
+  text-align: left;
   font-family: "Space Mono", monospace;
-  font-size: 0.42rem;
+  font-size: 0.52rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #a59e98;
 }
 
 .node-amount-figure strong {
   display: block;
-  margin-top: 6px;
+  margin-top: 0;
   color: var(--ink);
   font-family: "Space Mono", monospace;
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
+}
+
+.node-compact-title {
+  margin: 0;
+  color: var(--ink);
+  font-family: "Space Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .purpose-line {
@@ -484,6 +500,36 @@ input {
 .node-actions {
   display: flex;
   gap: 6px;
+}
+
+.compact-actions {
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.node-action-text {
+  padding: 4px 7px;
+  border: 1px solid #dfd7d0;
+  background: rgba(255, 255, 255, 0.62);
+  color: #5b554f;
+  font-family: "Space Mono", monospace;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.node-action-text:hover {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.node.income .node-action-text {
+  border-color: #bfd8c5;
+}
+
+.node.expense .node-action-text {
+  border-color: #e6c7d0;
 }
 
 .node-icon-button {
@@ -535,8 +581,8 @@ input {
 }
 
 .stack-summary {
-  margin-top: 12px;
-  padding-top: 10px;
+  margin-top: 2px;
+  padding-top: 8px;
   border-top: 1px dashed #ece6e0;
 }
 
@@ -565,7 +611,7 @@ input {
 
 .stack-summary-rows {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .stack-summary-row {
@@ -574,11 +620,11 @@ input {
   justify-content: space-between;
   gap: 10px;
   margin: 0;
-  padding: 6px 7px;
+  padding: 4px 6px;
   border: 1px dashed #e6dfd8;
   background: rgba(255, 255, 255, 0.42);
   font-family: "Space Mono", monospace;
-  font-size: 0.54rem;
+  font-size: 0.58rem;
 }
 
 .stack-summary-row span {
@@ -589,7 +635,7 @@ input {
 
 .stack-summary-row strong {
   color: var(--ink);
-  font-size: 0.58rem;
+  font-size: 0.7rem;
 }
 
 .node.income .stack-summary-row {
@@ -602,15 +648,30 @@ input {
   background: rgba(251, 223, 230, 0.45);
 }
 
+.stack-actions {
+  display: flex;
+  margin-top: 5px;
+}
+
 .stack-unstack-button {
-  border: 0;
-  background: transparent;
-  color: var(--accent);
+  border: 1px solid #dfd7d0;
+  background: rgba(255, 255, 255, 0.62);
+  color: #5b554f;
   cursor: pointer;
   font-family: "Space Mono", monospace;
-  font-size: 0.54rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 4px 7px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
+}
+
+.node.income .stack-unstack-button {
+  border-color: #bfd8c5;
+}
+
+.node.expense .stack-unstack-button {
+  border-color: #e6c7d0;
 }
 
 .connector {
