@@ -17,13 +17,20 @@
       <main class="workspace">
         <section class="canvas-shell">
           <div class="canvas-floating month-floating">
-            <button type="button" id="prev-month" class="month-nav month-nav-arrow" aria-label="Previous month">
-              &#8249;
-            </button>
-            <h1 id="month-label">March 2026</h1>
-            <button type="button" id="next-month" class="month-nav month-nav-arrow" aria-label="Next month">
-              &#8250;
-            </button>
+            <div class="month-row">
+              <button type="button" id="prev-month" class="month-nav month-nav-arrow" aria-label="Previous month">
+                &#8249;
+              </button>
+              <h1 id="month-label">March 2026</h1>
+              <button type="button" id="next-month" class="month-nav month-nav-arrow" aria-label="Next month">
+                &#8250;
+              </button>
+            </div>
+            <div class="month-summary" aria-label="Month summary">
+              <span class="month-summary-item">Available <strong id="summary-available">₹0.00</strong></span>
+              <span class="month-summary-item">Expenses <strong id="summary-expenses">₹0.00</strong></span>
+              <span class="month-summary-item">Income <strong id="summary-income">₹0.00</strong></span>
+            </div>
           </div>
 
           <div class="canvas-floating zoom-floating">

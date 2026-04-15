@@ -8,6 +8,9 @@ const popupPurpose = document.getElementById("popup-purpose");
 const popupAmount = document.getElementById("popup-amount");
 const popupCancel = document.getElementById("popup-cancel");
 const monthLabel = document.getElementById("month-label");
+const summaryAvailable = document.getElementById("summary-available");
+const summaryExpenses = document.getElementById("summary-expenses");
+const summaryIncome = document.getElementById("summary-income");
 const topbarNote = document.getElementById("topbar-note");
 const prevMonthButton = document.getElementById("prev-month");
 const nextMonthButton = document.getElementById("next-month");
@@ -463,7 +466,25 @@ async function persist() {
 
 function updateMonthHeader() {
   const monthDate = parseMonthKey(state.currentMonthKey);
+  const month = getCurrentMonth();
+  const incomeTotal = month.nodes
+    .filter((node) => node.type === "income")
+    .reduce((sum, node) => sum + node.amount, 0);
+  const expenseTotal = month.nodes
+    .filter((node) => node.type === "expense")
+    .reduce((sum, node) => sum + node.amount, 0);
+  const totalAvailable = calculateBalance("balance-axis") + calculateBalance("balance-kotak");
+
   monthLabel.textContent = formatMonth(monthDate);
+  if (summaryAvailable) {
+    summaryAvailable.textContent = formatCurrency(totalAvailable);
+  }
+  if (summaryExpenses) {
+    summaryExpenses.textContent = formatCurrency(expenseTotal);
+  }
+  if (summaryIncome) {
+    summaryIncome.textContent = formatCurrency(incomeTotal);
+  }
   if (topbarNote) {
     topbarNote.textContent =
       state.syncStatusNote ||
@@ -784,6 +805,8 @@ function refreshBalanceNodes() {
     balanceEl.querySelector(".balance-total-input").value = calculateBalance(balanceDef.id).toFixed(2);
     balanceEl.querySelector(".balance-caption").textContent = `${connectedRoots} connected root node(s)`;
   });
+
+  updateMonthHeader();
 }
 
 function updateConnectionDraft(clientX, clientY) {
@@ -983,7 +1006,6 @@ function buildBalanceNode(node) {
 function buildValueNode(node) {
   const article = document.createElement("article");
   const hasStack = getSubtreeNodes(node.id).length > 0;
-  const displayedAmount = hasStack ? getStackTotal(node) : node.amount;
   article.className = `node ${node.type}${node.connectedTo || node.parentId ? " connected" : ""}${hasStack ? " stack-parent" : ""}`;
   article.dataset.nodeId = node.id;
   article.style.left = `${node.x}px`;
@@ -993,10 +1015,19 @@ function buildValueNode(node) {
     <div class="node-card compact-card">
       <p class="node-compact-title">${node.purpose}</p>
       <div class="node-amount-figure">
-        <strong class="node-amount-value">${amountPrefix}${displayedAmount.toLocaleString("en-IN", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}</strong>
+        <span class="node-amount-label">Amount</span>
+        <label class="node-amount-inline">
+          <span class="node-amount-sign">${amountPrefix}</span>
+          <input
+            type="number"
+            class="node-amount-input"
+            inputmode="decimal"
+            min="0"
+            step="0.01"
+            value="${node.amount.toFixed(2)}"
+            aria-label="Edit ${node.purpose} amount"
+          />
+        </label>
       </div>
       <div class="node-actions compact-actions">
         <button type="button" class="node-action-text disconnect-button" ${!(node.connectedTo || node.parentId) ? "hidden" : ""}>Unlink</button>
@@ -1021,6 +1052,54 @@ function buildValueNode(node) {
   article.querySelector("[data-unstack-stack]")?.addEventListener("click", async (event) => {
     event.stopPropagation();
     await unstackNode(node.id);
+  });
+
+  const amountInput = article.querySelector(".node-amount-input");
+  let amountDraft = node.amount.toFixed(2);
+
+  async function commitAmountChange() {
+    const parsed = Number(amountInput.value);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      amountInput.value = amountDraft;
+      return;
+    }
+
+    const normalized = parsed.toFixed(2);
+    if (normalized === amountDraft) {
+      amountInput.value = amountDraft;
+      return;
+    }
+
+    node.amount = parsed;
+    amountDraft = normalized;
+    amountInput.value = normalized;
+    updateMonthHeader();
+    await persist();
+    render();
+  }
+
+  amountInput.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+  });
+
+  amountInput.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
+  amountInput.addEventListener("keydown", async (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      amountInput.blur();
+    }
+
+    if (event.key === "Escape") {
+      amountInput.value = amountDraft;
+      amountInput.blur();
+    }
+  });
+
+  amountInput.addEventListener("blur", async () => {
+    await commitAmountChange();
   });
 
   article.querySelectorAll("[data-unstack-id]").forEach((button) => {
