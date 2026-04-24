@@ -25,7 +25,9 @@ Then open `http://localhost:3000`.
 - Copy `db-config.example.js` to `db-config.js`
 - Create a Firebase project and add a Web app
 - Enable `Firestore Database` in the Firebase console
+- Enable `Authentication > Sign-in method > Anonymous`
 - Open `db-config.js` and paste your Firebase web config into `FIREBASE_CONFIG`
+- Deploy the checked-in Firestore rules with `firebase deploy --only firestore:rules`
 - Restart `npm start`
 
 The app stores one Firestore document per month in the `expenseFlowMonths` collection.

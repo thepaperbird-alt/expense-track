@@ -116,8 +116,9 @@ function normalizeMonth(monthKey, month) {
 }
 
 async function loadFirebaseModules() {
-  const [{ initializeApp, getApps, getApp }, firestore] = await Promise.all([
+  const [{ initializeApp, getApps, getApp }, auth, firestore] = await Promise.all([
     import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
+    import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
     import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`),
   ]);
 
@@ -125,8 +126,25 @@ async function loadFirebaseModules() {
     initializeApp,
     getApps,
     getApp,
+    ...auth,
     ...firestore,
   };
+}
+
+async function ensureAnonymousSession(auth, signInAnonymously) {
+  if (auth.currentUser) {
+    return auth.currentUser;
+  }
+
+  try {
+    const credential = await signInAnonymously(auth);
+    return credential.user;
+  } catch (error) {
+    throw new Error(
+      "Enable Anonymous sign-in in Firebase Authentication before using Firestore sync.",
+      { cause: error }
+    );
+  }
 }
 
 export async function createCloudDb(storageKey) {
@@ -139,15 +157,19 @@ export async function createCloudDb(storageKey) {
     initializeApp,
     getApps,
     getApp,
+    getAuth,
     getFirestore,
     collection,
     deleteDoc,
     doc,
     getDocs,
+    signInAnonymously,
     setDoc,
   } = await loadFirebaseModules();
 
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  await ensureAnonymousSession(auth, signInAnonymously);
   const db = getFirestore(app);
 
   return {
